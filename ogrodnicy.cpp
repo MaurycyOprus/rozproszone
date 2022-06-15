@@ -50,13 +50,9 @@ int timestamp = 0;
 std::vector<int> task_eq;
 
 // mutex
-pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_task_queue = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_last_messages = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_second_cs = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_my_position = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_total_tasks = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_tasks_began = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_zegar = PTHREAD_MUTEX_INITIALIZER;
 
 void instytut(int vNumOfGardeners){
     sleep(1);
@@ -121,14 +117,10 @@ void *listening(void *arguments){
             pthread_mutex_unlock(&mutex_total_tasks);
         }else{                          
             //  wiadomość od ogrodnika
-            pthread_mutex_lock(&mutex_last_messages); 
             last_messages[status.MPI_SOURCE-1] =  timestamp;
-            pthread_mutex_unlock(&mutex_last_messages); 
             switch(status.MPI_TAG){
                 case REQ_IN:
-                    pthread_mutex_lock(&mutex_task_queue); 
                     local_queue[status.MPI_SOURCE-1] = task_data[2];    //  wstawienie do lokalnej kolejki czyjegość ządania - 2d
-                    pthread_mutex_unlock(&mutex_task_queue); 
                     message_to_send[2] = timestamp;
                     MPI_Send(&message_to_send, 1, MPI_INT, status.MPI_SOURCE, ACK, MPI_COMM_WORLD); //    odeslanie ack
                 break;
@@ -246,7 +238,6 @@ int main(int argc, char **argv)
             }
             sleep(1);
             //sprawdzenie czy otrzymałem nowszą wiadomość od wszystkich - 2e
-            pthread_mutex_lock(&mutex_last_messages); 
             int v_true = 1;
             for (int i = 1; i <= number_of_gardeners; i++){
                 if(i != rank && last_messages[i-1] <= last_messages[rank-1]){
@@ -256,19 +247,18 @@ int main(int argc, char **argv)
                     // printf(FBLU("(%d) Timestampy: [%d, %d, %d, %d]\n"), timestamp,  last_messages[0], last_messages[1], last_messages[2], last_messages[3]);
                 }
             }
-            pthread_mutex_unlock(&mutex_last_messages); 
 
             //jeśli mam nowszą wiadomość od wszystkich, to sprawdzaj swoją pozycję w kolejce - 2e
             if (v_true == 1 && local_queue[rank-1] >= 0){
                 // printf(FWHT("(%d) OGRODNIK NR: %d odebral nowsze wiadomosci od każdego procesu\n"), timestamp, rank);
-                pthread_mutex_lock(&mutex_task_queue); 
+                pthread_mutex_lock(&mutex_my_position); 
                 int my_position = 1;
                 for (int i = 1; i <= number_of_gardeners; i++){
                     if(i != rank && local_queue[i-1] >= 0 && (local_queue[i-1] < local_queue[rank-1] || (local_queue[i-1] == local_queue[rank-1] &&  i < rank))){
                         my_position++;
                     }
                 }
-                pthread_mutex_unlock(&mutex_task_queue); 
+                pthread_mutex_unlock(&mutex_my_position); 
 
                 printf(FWHT("(%d) OGRODNIK NR: %d ma %d pozycje w lokalnej kolejce\n"), timestamp, rank, my_position);
                 printf(FWHT("(%d) Lokalna kolejna OGRODNIKA NR: %d [ "), timestamp, rank);
@@ -285,7 +275,6 @@ int main(int argc, char **argv)
 
                 //biore zadanie odpowiadajace mojej pozycji, jezeli takie jest - 2e
                 if(total_tasks - tasks_began > 0 && my_position < total_tasks - tasks_began){
-                    pthread_mutex_lock(&mutex_init);
                     pthread_mutex_lock(&mutex_tasks_began);
                     printf(FMAG("(%d) OGRODNIK NR: %d bierze zlecenie nr %d\n"), timestamp, rank, tasks_began + my_position - 1);
                     int my_task = tasks_began + my_position - 1;
@@ -295,7 +284,6 @@ int main(int argc, char **argv)
                         MPI_Send(&message_for_gardeners, 1, MPI_INT, i, REL_IN, MPI_COMM_WORLD); // wyslanie release po otrzymaniu zadania - 2e
                     }
                     timestamp++;
-                    pthread_mutex_unlock(&mutex_init);  
                     int sleep_time = (rand() % (10) + 5);
                     printf(FMAG("(%d) OGRODNIK NR: %d zapoznaje się z literaturą przez kolejne %d sekund\n"), timestamp, rank, sleep_time);
                     sleep(sleep_time);
@@ -322,7 +310,6 @@ int main(int argc, char **argv)
                     //----------------------------------------------------------------------------------------------------------------------------------------------------
                     int task_finished = 0;
                     while(task_finished == 0){
-                        pthread_mutex_lock(&mutex_last_messages); 
                     //sprawdzenie czy mam nowszą wiadomość od wszystkich - 2f
                         int v_true = 1;
                         for (int i = 1; i <= number_of_gardeners; i++){
@@ -330,11 +317,10 @@ int main(int argc, char **argv)
                                 v_true = 0;
                             }
                         }
-                        pthread_mutex_unlock(&mutex_last_messages); 
 
                         //sprawdzenie pozycji w kolejce do odpowiedniego sprzętu - 2f
                         if (v_true == 1){
-                            pthread_mutex_lock(&mutex_second_cs); 
+                            pthread_mutex_lock(&mutex_my_position); 
                             int my_position = 1;
                             if(tag == REQ_T){
                                 for (int i = 1; i <= number_of_gardeners; i++){
@@ -358,7 +344,7 @@ int main(int argc, char **argv)
                                 }
                                 printf(FYEL("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po pryskacz.\n"), timestamp, rank, my_position);
                             }
-                            pthread_mutex_unlock(&mutex_second_cs); 
+                            pthread_mutex_unlock(&mutex_my_position); 
 
                             //sprawdzenie czy moja pozycja upoważnia mnie do wzięcia sprzętu - 2f
                             if(tag == REQ_T && my_position <= T_SIZE){
