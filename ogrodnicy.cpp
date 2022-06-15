@@ -342,21 +342,21 @@ int main(int argc, char **argv)
                                         my_position++;
                                     }
                                 }
-                                printf(FCYN("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po kosiarke. Kolejka: [%d, %d, %d, %d, %d, %d, %d, %d]\n"), timestamp, rank, my_position, T_queue[0], T_queue[1], T_queue[2], T_queue[3], T_queue[4], T_queue[5], T_queue[6], T_queue[7]);
+                                printf(FCYN("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po kosiarke.\n"), timestamp, rank, my_position);
                             }else if(tag == REQ_P){
                                 for (int i = 1; i <= number_of_gardeners; i++){
                                     if(i != rank && P_queue[i-1] >= 0 && (P_queue[i-1] < P_queue[rank-1] || (P_queue[i-1] == P_queue[rank-1] &&  i < rank))){
                                         my_position++;
                                     }
                                 }
-                                printf(FRED("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po sekator. Kolejka: [%d, %d, %d, %d, %d, %d, %d, %d]\n"), timestamp, rank, my_position, P_queue[0], P_queue[1], P_queue[2], P_queue[3], P_queue[4], P_queue[5], P_queue[6], P_queue[7]);
+                                printf(FRED("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po sekator.\n"), timestamp, rank, my_position);
                             }else{
                                 for (int i = 1; i <= number_of_gardeners; i++){
                                     if(i != rank && W_queue[i-1] >= 0 && (W_queue[i-1] < W_queue[rank-1] || (W_queue[i-1] == W_queue[rank-1] &&  i < rank))){
                                         my_position++;
                                     }
                                 }
-                                printf(FYEL("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po pryskacz. Kolejka: [%d, %d, %d, %d, %d, %d, %d, %d]\n"), timestamp, rank, my_position, W_queue[0], W_queue[1], W_queue[2], W_queue[3],  W_queue[4], W_queue[5], W_queue[6], W_queue[7]);
+                                printf(FYEL("(%d) OGRODNIK NR: %d jest na pozycji %d w kolejce po pryskacz.\n"), timestamp, rank, my_position);
                             }
                             pthread_mutex_unlock(&mutex_second_cs); 
 
@@ -364,6 +364,11 @@ int main(int argc, char **argv)
                             if(tag == REQ_T && my_position <= T_SIZE){
                                 int sleep_time = (rand() % (10) + 5);
                                 printf(FCYN("(%d) OGRODNIK NR: %d bierze wchodzi do sekcji krytycznej i zaczyna realizować zlecenie %d (przez %d sekund)\n"), timestamp, rank, my_task, sleep_time);
+                                printf(FCYN("Kolejka po kosiarke: ["));
+                                for(int i=0; i < size - 1; i++){
+                                    printf(FCYN(" %d "), W_queue[i]);
+                                }
+                                printf(FCYN(" ]\n"));
                                 sleep(sleep_time);      //wykonywanie zadania
                                 task_finished = 1;
                                 local_queue[rank-1] = -1;
@@ -376,6 +381,11 @@ int main(int argc, char **argv)
                             }else if(tag == REQ_P && my_position <= P_SIZE){
                                 int sleep_time = (rand() % (10) + 5);
                                 printf(FRED("(%d) OGRODNIK NR: %d bierze wchodzi do sekcji krytycznej i zaczyna realizować zlecenie %d (przez %d sekund)\n"), timestamp, rank, my_task, sleep_time);
+                                printf(FRED("Kolejka po sekator: ["));
+                                for(int i=0; i < size - 1; i++){
+                                    printf(FRED(" %d "), W_queue[i]);
+                                }
+                                printf(FRED(" ]\n"));
                                 sleep(sleep_time);      //wykonywanie zadania
                                 task_finished = 1;
                                 local_queue[rank-1] = -1;
@@ -388,6 +398,11 @@ int main(int argc, char **argv)
                             }else if(tag == REQ_W && my_position <= W_SIZE){
                                 int sleep_time = (rand() % (10) + 5);
                                 printf(FYEL("(%d) OGRODNIK NR: %d bierze wchodzi do sekcji krytycznej i zaczyna realizować zlecenie %d (przez %d sekund) \n"), timestamp, rank, my_task, sleep_time);
+                                printf(FYEL("Kolejka po pryskacz: ["));
+                                for(int i=0; i < size - 1; i++){
+                                    printf(FYEL(" %d "), W_queue[i]);
+                                }
+                                printf(FYEL(" ]\n"));
                                 sleep(sleep_time);      //wykonywanie zadania
                                 task_finished = 1;
                                 local_queue[rank-1] = -1;
